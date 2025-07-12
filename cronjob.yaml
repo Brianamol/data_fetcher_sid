@@ -1,0 +1,21 @@
+# Note: To deploy this, ensure a Kubernetes cluster is running (e.g. Minikube).
+# Create the secret using:
+# kubectl create secret generic data-fetcher-env --from-env-file=.env
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: data-fetcher-cron
+spec:
+  schedule: "0 8 * * 1-5" # Runs at 08:00 AM, Monday–Friday
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: data-fetcher
+              image: brian2024/data_fetcher_sid:latest # <-- update with actual Docker Hub path if applicable
+              envFrom:
+                - secretRef:
+                    name: data-fetcher-env
+          restartPolicy: OnFailure
