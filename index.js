@@ -3,7 +3,8 @@ require("dotenv").config();
 const mysql = require("mysql2/promise");
 const amqp = require("amqplib");
 
-const QUEUE = "phone.resolver.queue";
+const MATCH_QUEUE = "phone.resolver.queue";
+const EXCLUDED_QUEUE = "phone.excluded.queue";
 
 (async () => {
   try {
@@ -15,33 +16,53 @@ const QUEUE = "phone.resolver.queue";
       database: process.env.DB_NAME,
     });
 
-    // Query for Day 3 and Day 7 accounts
-    const [rows] = await conn.execute(
-      "SELECT Customer_Name, Client_Id, Aging_ODs, Aging_Loans, Overal_Aging, Branch, Relationship_Manager, Telephone, Arrear, RO_NAME FROM par_report WHERE Overal_Aging IN (3, 7)"
+    // Get ALL rows
+    const [allRows] = await conn.execute(
+      "SELECT sms_id, Customer_Name, Client_Id, Aging_ODs, Aging_Loans, Overal_Aging, Branch, Relationship_Manager, Telephone, Arrear, RO_NAME FROM par_report"
     );
 
-    console.log(`✅ Found ${rows.length} matching records.`);
+    // Filter rows
+    const matchingRows = allRows.filter((r) => [3, 7].includes(r.Overal_Aging));
+    const excludedRows = allRows.filter(
+      (r) => ![3, 7].includes(r.Overal_Aging)
+    );
+
+    console.log(
+      `✅ Found ${matchingRows.length} matching records (Day 3 or Day 7).`
+    );
+    console.log(
+      `🚫 Found ${excludedRows.length} records with Overal_Aging ≠ 3 or 7.`
+    );
 
     // Connect to RabbitMQ
     const connection = await amqp.connect(process.env.RABBITMQ_URL);
     const channel = await connection.createChannel();
-    await channel.assertQueue(QUEUE, { durable: true });
 
-    for (const row of rows) {
-      const message = {
-        sms_id: uuidv4(), // ✅ generate a new unique sms_id
-        ...row,
-      };
+    // Ensure both queues exist
+    await channel.assertQueue(MATCH_QUEUE, { durable: true });
+    await channel.assertQueue(EXCLUDED_QUEUE, { durable: true });
 
-      const msg = JSON.stringify(message);
-      channel.sendToQueue(QUEUE, Buffer.from(msg), { persistent: true });
-      console.log(`📤 Sent: ${msg}`);
+    // Send matching records
+    for (const row of matchingRows) {
+      row.sms_id = uuidv4(); // generate a new unique ID
+      const msg = JSON.stringify(row);
+      channel.sendToQueue(MATCH_QUEUE, Buffer.from(msg), { persistent: true });
+      console.log(`📤 Sent to ${MATCH_QUEUE}: ${msg}`);
+    }
+
+    for (const row of excludedRows) {
+      row.sms_id = uuidv4();
+      const msg = JSON.stringify(row);
+      channel.sendToQueue(EXCLUDED_QUEUE, Buffer.from(msg), {
+        persistent: true,
+      });
+      console.log(`📤 Sent to ${EXCLUDED_QUEUE}: ${msg}`);
     }
 
     await channel.close();
     await connection.close();
     await conn.end();
-    console.log("✅ Done sending messages.");
+    console.log("✅ All messages sent. Task complete.");
   } catch (err) {
     console.error("❌ Error:", err.message);
   }
