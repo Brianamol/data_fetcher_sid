@@ -7,11 +7,6 @@ pipeline {
   }
 
   stages {
-    stage('Checkout') {
-      steps {
-        git branch: 'working-branch', url: 'https://github.com/Brianamol/data_fetcher_sid.git'
-      }
-    }
 
     stage('Build Docker Image') {
       steps {
