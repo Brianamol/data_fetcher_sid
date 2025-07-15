@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   environment {
-    IMAGE_NAME = "inteligen/data_fetcher_sid"
+    IMAGE_NAME = "intelligen/data_fetcher_sid"
     TAG = "latest"
   }
 
