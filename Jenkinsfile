@@ -9,7 +9,7 @@ pipeline {
   stages {
     stage('Checkout') {
       steps {
-        git 'https://gitlab.com/inteligeninfosys/data_fetcher_sid.git'
+        git branch: 'working-branch', url: 'https://github.com/Brianamol/data_fetcher_sid.git'
       }
     }
 
