@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qloan-consumer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qloan-consumer
+  template:
+    metadata:
+      labels:
+        app: qloan-consumer
+    spec:
+      containers:
+        - name: qloan-consumer
+          image: inteligen/data_fetcher_sid:latest
+          command: ["node", "src/consumers/qLoanConsumer.js"]
+          envFrom:
+            - secretRef:
+                name: data-fetcher-env

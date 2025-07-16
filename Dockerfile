@@ -21,4 +21,4 @@ USER appuser
 ENV NODE_ENV=production
 
 # Start the app
-CMD ["node", "index.js"]
+CMD ["node", "index.js", "src/cron/index.js", "src/consumers/qLoanConsumer.js"]

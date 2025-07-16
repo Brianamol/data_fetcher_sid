@@ -1,3 +1,6 @@
+# ----------------------------
+# 🟦 Data Fetcher Deployment
+# ----------------------------
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -14,13 +17,17 @@ spec:
     spec:
       containers:
         - name: data-fetcher
-          image: inteligen/data_fetcher_sid:latest
+          image: amolbrand254/data_fetcher_sid:latest
           envFrom:
             - secretRef:
                 name: data-fetcher-env
           ports:
             - containerPort: 3000
+
 ---
+# ----------------------------
+# 🔐 Environment Variables
+# ----------------------------
 apiVersion: v1
 kind: Secret
 metadata:
@@ -32,3 +39,96 @@ stringData:
   DB_PASS: "Brian@2024"
   DB_NAME: "par_data"
   RABBITMQ_URL: "amqp://rabbitmq"
+
+---
+# ----------------------------
+# 🟨 MySQL Deployment
+# ----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:5.7
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "Brian@2024"
+            - name: MYSQL_DATABASE
+              value: "par_data"
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-data
+          emptyDir: {}
+
+---
+# 🟨 MySQL Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+spec:
+  selector:
+    app: mysql
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+
+---
+# ----------------------------
+# 🟩 RabbitMQ Deployment
+# ----------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3-management
+          ports:
+            - containerPort: 5672 # AMQP
+            - containerPort: 15672 # Management UI
+
+---
+# 🟩 RabbitMQ Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+spec:
+  selector:
+    app: rabbitmq
+  ports:
+    - name: amqp
+      protocol: TCP
+      port: 5672
+      targetPort: 5672
+    - name: management
+      protocol: TCP
+      port: 15672
+      targetPort: 15672
